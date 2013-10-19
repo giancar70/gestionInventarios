@@ -175,9 +175,10 @@ namespace Sistema_de__Inventarios.Bean
         {
             String sql = "";
            // int type =0;
-            sql = "select a.nombre, a.Id, a.ultimoprecio, b.Codigo, c.precio, c.stock, a.codigo, a.proveedor, a.marca from " +
-                      "Producto a, Requerimiento b, RequerimientoxProducto c where " +
-                      "a.Id = c.idProducto and b.Id =c.idRequerimiento and ";
+            sql = "select a.nombre, a.Id, a.ultimoprecio, b.Codigo, c.precio, c.stock, " +  
+                "a.codigo, a.proveedor, a.marca from " +
+                "Producto a, Requerimiento b, RequerimientoxProducto c where " +
+                "a.Id = c.idProducto and b.Id =c.idRequerimiento and ";
             if (idProducto.Length > 0 && idRequerimiento.Length == 0)
             {
               //  type = 1;
@@ -237,10 +238,11 @@ namespace Sistema_de__Inventarios.Bean
             List<Producto> listaProductos = new List<Producto>();
             String sql = "";
 
-            sql = "select a.nombre, a.Id, a.ultimoprecio, b.Codigo, c.precio, c.stock, a.codigo, a.proveedor, a.marca, a.stockactual, b.Id from " +
-                      "Producto a, Requerimiento b, RequerimientoxProducto c where " +
-                      "a.Id = c.idProducto and b.Id =c.idRequerimiento and " +
-                      " b.Codigo = '" + codigoRequerimiento + "'";
+            sql = "select a.nombre, a.Id, a.ultimoprecio, b.Codigo, c.precio, c.stock, " +
+                  "a.codigo, a.proveedor, a.marca, a.stockactual, b.Id from " +
+                  "Producto a, Requerimiento b, RequerimientoxProducto c where " +
+                  "a.Id = c.idProducto and b.Id = c.idRequerimiento and " +
+                  " b.Codigo = '" + codigoRequerimiento + "'";
            
             OleDbDataReader reader = null;
             try
@@ -282,8 +284,11 @@ namespace Sistema_de__Inventarios.Bean
             return listaProductos;
         }
 
-        public void doDocumentoVenta(List<Producto> listaProductos)
+        public Boolean doDocumentoVenta(List<Producto> listaProductos)
         {
+            Boolean isOk = true;
+            List<Producto> listaProductoError = new List<Producto>();
+            List<int> listStock = new List<int>();
             try
             {
                 IniciarConexion();
@@ -294,67 +299,79 @@ namespace Sistema_de__Inventarios.Bean
                 for (int i = 0; i < listaProductos.Count; i++)
                 {
                     producto = listaProductos[i];
-                    stock = getPrecioProducto(producto.id) - producto.stock;
-                    sql = "UPDATE Producto SET stockactual=" + stock + "";
-                    sql += " WHERE codigo='" + producto.codigo + "'";
-                    OleDbCommand cmd = new OleDbCommand(sql, Conexion);
-                    cmd.ExecuteNonQuery();
+                    stock = getStockActual(producto.id) - producto.stock;
+                    if (stock > 0)
+                    {
+                        listStock.Add(stock);
+                    }
+                    else
+                    {
+                        isOk = false;
+                    }
                 }
-                insertDataSalida(producto.idRequerimiento,producto.codigoRequerimiento);
+                if (isOk)
+                {
+                    for (int i = 0; i < listaProductos.Count; i++)
+                    {
+                        producto = listaProductos[i];
+                        stock = listStock[i];
+                        listStock.Add(stock);
+                        sql = "UPDATE Producto SET stockactual=" + stock + "";
+                        sql += " WHERE codigo='" + producto.codigo + "'";
+                        OleDbCommand cmd = new OleDbCommand(sql, Conexion);
+                        cmd.ExecuteNonQuery();
+                    }
+                    insertDataSalida(producto.idRequerimiento, producto.codigoRequerimiento);
+                }
             }
             catch (Exception e)
             {
+                isOk = false;
             }
             finally
             {
                 Conexion.Close();
             }
+            return isOk;
         }
 
-        private int getPrecioProducto(int idProducto)
+        private int getStockActual(int idProducto)
         {
             String sql = "";
-            int precio = 0;
-            sql = "select a.stockactual from " +
-                      "Producto a where " +
+            int stockActual = 0,stockminimo = 0;
+            sql = "select a.stockactual, a.stockminimo from Producto a where " +
                       "a.Id = " + idProducto;
 
             OleDbDataReader reader = null;
             try
             {
-                //IniciarConexion();
-                //Conexion.Open();
                 OleDbCommand cmd = new OleDbCommand(sql, Conexion);
                 reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
-                   precio = (Int32)(reader[0]);
+                   stockActual = (Int32)(reader[0]);
+                   stockminimo = (Int32)(reader[1]);
+                }
+                if (!(stockActual > 2 * stockminimo))
+                {
+                    stockActual = -1;
                 }
             }
             catch (Exception e)
             {
-
+                stockActual = -1;
             }
-            finally
-            {
-              //reader.Close();
-              //Conexion.Close();
-            }
-            return precio;
+            return stockActual;
         }
 
         private void insertDataSalida(int idRequerimiento, String codigoRequerimiento)
         {
             String sql = "";
-            String fecha = "";
             sql = "INSERT INTO SalidaProductos(fecha,idRequerimiento,codigoRequerimiento) " +
                   "VALUES ('" + DateTime.Now +"',"+idRequerimiento +",'" + codigoRequerimiento +"')";
             OleDbCommand cmd = new OleDbCommand(sql, Conexion);
             int stado = cmd.ExecuteNonQuery();
-            int cand = 5;
         }
-
     }
-
 
 }

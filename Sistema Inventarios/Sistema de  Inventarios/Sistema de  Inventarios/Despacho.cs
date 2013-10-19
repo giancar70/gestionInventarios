@@ -73,12 +73,17 @@ namespace Sistema_de__Inventarios
 
         private void btn_Confirmar_Click(object sender, EventArgs e)
         {
+            Boolean isOk = true;
             //Confirmar y disminuir stock, luego guardar en una tabla extra
             DialogResult result = MessageBox.Show("Seguro que desea generar?", "Generar Orden Salida", MessageBoxButtons.YesNo);
             if (result == DialogResult.Yes)
             {
                 // Descontar Stock
-                DB.doDocumentoVenta(listaProductos);
+                isOk = DB.doDocumentoVenta(listaProductos);
+            }
+            if (!isOk)
+            {
+                MessageBox.Show("Hubo un error al generar, Hay productos que no tienen stock suficiente");
             }
         }
     }
